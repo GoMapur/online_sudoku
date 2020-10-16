@@ -14,6 +14,7 @@ class ClientChannel(Channel):
     def __init__(self, nickname, board_state_original, board_state_filled, *args, **kwargs):
         self.nickname = nickname
         self.board_state_original = []
+        self.board_state_correct = []
         self.board_state_filled = []
         Channel.__init__(self, *args, **kwargs)
 
@@ -23,13 +24,32 @@ class ClientChannel(Channel):
     ##################################
     ### Network specific callbacks ###
     ##################################
-    def Network_move(self, data):
+    def Network_Nickname(self, data):
+        self.nickname = data['nickname']
+        self._server.InformPlayerPresence()
+
+    def Network_OpponentWin(self, data):
         self.board_state_filled = data["board_state_filled"]
         self._server.SendToOpponent({"action": "OpponentMove", "board_state_filled": data["board_state_filled"], "board_state_original": data["board_state_original"], "current_move": data["current_move"], "move_direction": data["move_direction"]}, self.nickname)
 
-    def Network_nickname(self, data):
-        self.nickname = data['nickname']
-        self._server.InformPlayerPresence()
+
+    def Network_OpponentLeft(self, data):
+        self._server.DelPlayer(self)
+
+    def Network_OpponentSelect(self, data):
+        self._server.DelPlayer(self)
+
+    def Network_OpponentInputNumber(self, data):
+        self._server.DelPlayer(self)
+
+    def Network_OpponentDeleteSelected(self, data):
+        self._server.DelPlayer(self)
+
+    def Network_OpponentEnterWrong(self, data):
+        self._server.DelPlayer(self)
+
+    def NetworkOpponentEnterCorrect(self, data):
+        self._server.DelPlayer(self)
 
 class SudokuServer(Server):
     channelClass = ClientChannel
