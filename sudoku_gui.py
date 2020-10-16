@@ -7,26 +7,6 @@ import random
 
 pygame.init()
 
-def generate():
-    '''Randomly generates a Sudoku grid/board'''
-    while True:  #return will interrupt the loop
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                exit()
-        board = [[0 for i in range(9)] for j in range (9)]
-        # puts one random number, then solves the board to generate a board
-        for i in range(9):
-            for j in range(9):
-                if random.randint(1, 10) >= 5:
-                    board[i][j] = random.randint(1, 9)  #plug in random number at random spot
-                    if valid(board, (i, j), board[i][j]):
-                        continue
-                    else:
-                        board[i][j] = 0
-        partialBoard = deepcopy(board) #copies board without being modified after solve is called
-        if solve(board):
-            return partialBoard
-
 class Board:
     '''A sudoku board made out of Tiles'''
     def __init__(self, window):

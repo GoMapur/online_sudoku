@@ -5,6 +5,8 @@ from weakref import WeakKeyDictionary
 from PodSixNet.Server import Server
 from PodSixNet.Channel import Channel
 
+from sudoku_alg import generate_board
+
 class ClientChannel(Channel):
     """
     This is the server representation of a single connected client.
@@ -21,10 +23,9 @@ class ClientChannel(Channel):
     ##################################
     ### Network specific callbacks ###
     ##################################
-
     def Network_move(self, data):
         self.board_state_filled = data["board_state_filled"]
-        self._server.SendToOpponent({"action": "move", "board_state": data, "who": self.nickname})
+        self._server.SendToOpponent({"action": "OpponentMove", "board_state_filled": data["board_state_filled"], "board_state_original": data["board_state_original"], "current_move": data["current_move"], "move_direction": data["move_direction"]}, self.nickname)
 
     def Network_nickname(self, data):
         self.nickname = data['nickname']
@@ -36,6 +37,7 @@ class SudokuServer(Server):
     def __init__(self, *args, **kwargs):
         Server.__init__(self, *args, **kwargs)
         self.players = WeakKeyDictionary()
+        self.initial_board_state = generate_board()
         print('Server launched')
 
     def Connected(self, channel, addr):
@@ -48,19 +50,36 @@ class SudokuServer(Server):
         self.players[player] = True
         self.InformPlayerPresence()
         print("players", [p for p in self.players])
+        if len(self.players) == 2:
+            for p in self.players:
+                p.Send({"action": "CompetitionInit", "initial_board_state": self.initial_board_state})
 
     def DelPlayer(self, player):
         print("Deleting Player" + str(player.addr))
         del self.players[player]
-        self.InformPlayerPresence()
+        self.InformPlayerLeft()
 
     def InformPlayerPresence(self):
         p1, p2 = self.players[0], self.players[1]
-        p1.Send({"action": "informPlayerPresence", "opponent": p2.nickname})
-        p2.Send({"action": "informPlayerPresence", "opponent": p1.nickname})
+        p1.Send({"action": "InformPlayerPresence", "opponent": p2.nickname})
+        p2.Send({"action": "InformPlayerPresence", "opponent": p1.nickname})
 
-    def SendToAll(self, data):
-        [p.Send(data) for p in self.players]
+    def InformPlayerLeft(self):
+        if len(self.players) == 1:
+            self.players[0].Send({"action": "InformPlayerLeft"})
+
+    def SendToOpponent(self, data, nickname):
+        opponent = self.reverse_player(nickname)
+        if opponent:
+            opponent.send(data)
+
+    def reverse_player(self, nickname):
+        p1, p2 = self.players[0], self.players[1]
+        if nickname == p1.nickname:
+            return p2
+        elif nickname == p2.nickname:
+            return p1
+        return None
 
     def Launch(self):
         while True:

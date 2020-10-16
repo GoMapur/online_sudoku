@@ -30,17 +30,26 @@ class Client(ConnectionListener):
         # horrid threaded input loop
         # continually reads from stdin and sends whatever is typed to the server
         while 1:
-            connection.Send({"action": "message", "message": stdin.readline().rstrip("\n")})
+            connection.Send({"action": "move", "board_state": stdin.readline().rstrip("\n")})
 
     #######################################
     ### Network event/message callbacks ###
     #######################################
 
-    def Network_informPlayerPresence(self, data):
+    def Network_InformPlayerPresence(self, data):
         print("*** players: " + ", ".join([p for p in data['players']]))
 
-    def Network_move(self, data):
+    def Network_InformPlayerLeft(self, data):
+        print("*** players: " + ", ".join([p for p in data['players']]))
+
+    def Network_CompetitionInit(self, data):
+        print(data["initial_board_state"])
+
+    def Network_OpponentMove(self, data):
         print(data['who'] + ": " + data['message'])
+
+    def Network_OpponentWin(self, data):
+        print("player won")
 
     # built in stuff
     def Network_connected(self, data):

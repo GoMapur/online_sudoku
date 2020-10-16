@@ -1,3 +1,23 @@
+import random
+from copy import deepcopy
+
+def generate_board():
+    '''Randomly generates a Sudoku grid/board'''
+    while True:  #return will interrupt the loop
+        board = [[0 for i in range(9)] for j in range (9)]
+        # puts one random number, then solves the board to generate a board
+        for i in range(9):
+            for j in range(9):
+                if random.randint(1, 10) >= 5:
+                    board[i][j] = random.randint(1, 9)  #plug in random number at random spot
+                    if valid(board, (i, j), board[i][j]):
+                        continue
+                    else:
+                        board[i][j] = 0
+        partialBoard = deepcopy(board) #copies board without being modified after solve is called
+        if solve(board):
+            return partialBoard
+
 def print_board(board):
     '''Prints the board'''
     boardString = ""
@@ -14,7 +34,7 @@ def print_board(board):
                 boardString += "- - - - - - - - - - - \n"
     print(boardString)
 
-def find_empty (board):
+def find_empty(board):
     '''Finds an empty cell and returns its position as a tuple'''
     for i in range (9):
         for j in range (9):
