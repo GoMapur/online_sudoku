@@ -82,51 +82,51 @@ class Client(ConnectionListener):
                             if board.my_tiles[i][j].clicked(mousePos):
                                 selected = i,j
                                 board.deselect(board.my_tiles[i][j]) #deselects every tile except the one currently clicked
-                                connection.Send({"action": "OpponentSelect"})
+                                connection.Send({"action": "OpponentMove"})
 
                 elif event.type == pygame.KEYDOWN:
                     if board.board[selected[1]][selected[0]] == 0 and selected != (-1,-1):
                         if event.key == pygame.K_1:
                             keyDict[selected] = 1
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_2:
                             keyDict[selected] = 2
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_3:
                             keyDict[selected] = 3
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_4:
                             keyDict[selected] = 4
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_5:
                             keyDict[selected] = 5
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_6:
                             keyDict[selected] = 6
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_7:
                             keyDict[selected] = 7
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_8:
                             keyDict[selected] = 8
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         if event.key == pygame.K_9:
                             keyDict[selected] = 9
-                            connection.Send({"action": "OpponentInputNumber"})
+                            connection.Send({"action": "OpponentMove"})
 
                         elif event.key == pygame.K_BACKSPACE or event.key == pygame.K_DELETE:  # clears tile out
                             if selected in keyDict:
                                 board.my_tiles[selected[1]][selected[0]].value = 0
                                 del keyDict[selected]
-                                connection.Send({"action": "OpponentDeleteSelected"})
+                                connection.Send({"action": "OpponentMove"})
 
                         elif event.key == pygame.K_RETURN:
                             if selected in keyDict:
@@ -134,13 +134,13 @@ class Client(ConnectionListener):
                                     wrong += 1
                                     board.my_tiles[selected[1]][selected[0]].value = 0
                                     del keyDict[selected]
-                                    connection.Send({"action": "OpponentEnterWrong"})
+                                    connection.Send({"action": "OpponentMove"})
                                     break
                                 #valid and correct entry into cell
                                 board.my_tiles[selected[1]][selected[0]].value = keyDict[selected] #assigns current grid value
                                 board.board[selected[1]][selected[0]] = keyDict[selected] #assigns to actual board so that the correct value can't be modified
                                 del keyDict[selected]
-                                connection.Send({"action": "OpponentEnterCorrect"})
+                                connection.Send({"action": "OpponentMove"})
 
             board.redraw(keyDict, wrong, passedTime)
         while True: #another running loop so that the program ONLY closes when user closes program

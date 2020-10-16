@@ -29,27 +29,14 @@ class ClientChannel(Channel):
         self._server.InformPlayerPresence()
 
     def Network_OpponentWin(self, data):
-        self.board_state_filled = data["board_state_filled"]
-        self._server.SendToOpponent({"action": "OpponentMove", "board_state_filled": data["board_state_filled"], "board_state_original": data["board_state_original"], "current_move": data["current_move"], "move_direction": data["move_direction"]}, self.nickname)
-
+        self._server.SendToOpponent({"action": "OpponentWin"})
 
     def Network_OpponentLeft(self, data):
         self._server.DelPlayer(self)
 
-    def Network_OpponentSelect(self, data):
-        self._server.DelPlayer(self)
-
-    def Network_OpponentInputNumber(self, data):
-        self._server.DelPlayer(self)
-
-    def Network_OpponentDeleteSelected(self, data):
-        self._server.DelPlayer(self)
-
-    def Network_OpponentEnterWrong(self, data):
-        self._server.DelPlayer(self)
-
-    def NetworkOpponentEnterCorrect(self, data):
-        self._server.DelPlayer(self)
+    def Network_OpponentMove(self, data):
+        self.board_state_filled = data["board_state_filled"]
+        self._server.SendToOpponent({"action": "OpponentMove", "board_state_correct": data["board_state_correct"], "board_state_filled": data["board_state_filled"], "board_state_original": data["board_state_original"], "current_selection": data["current_selection"], "selection_color": data["selection_color"]}, self.nickname)
 
 class SudokuServer(Server):
     channelClass = ClientChannel
