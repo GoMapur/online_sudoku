@@ -29,28 +29,25 @@ class Client(ConnectionListener):
         print("Enter your nickname: ")
         connection.Send({"action": "Nickname", "nickname": stdin.readline().rstrip("\n")})
 
+        screen = pygame.display.set_mode((540*2 + 30, 590))
+        screen.fill((255, 255, 255))
+        pygame.display.set_caption("Sudoku")
+        icon = pygame.image.load("icon.png")
+        pygame.display.set_icon(icon)
+        self.screen = screen
+
+        font = pygame.font.SysFont('Bahnschrift', 40)
+        text = font.render("Waiting opponent to connect", True, (0, 0, 0))
+        screen.blit(text, (175, 245))
+
     def Loop(self):
         connection.Pump()
         self.Pump()
 
     def InputLoop(self):
         # connection.Send({"action": "move", "board_state": stdin.readline().rstrip("\n")})
-        '''Runs the main Sudoku GUI/Game'''
-        screen = pygame.display.set_mode((540*2 + 30, 590))
-        screen.fill((255, 255, 255))
-        pygame.display.set_caption("Sudoku")
-        icon = pygame.image.load("icon.png")
-        pygame.display.set_icon(icon)
 
-        #loading screen when generating grid
-        font = pygame.font.SysFont('Bahnschrift', 40)
-        text = font.render("Generating", True, (0, 0, 0))
-        screen.blit(text, (175, 245))
 
-        font = pygame.font.SysFont('Bahnschrift', 40)
-        text = font.render("Grid", True, (0, 0, 0))
-        screen.blit(text, (230, 290))
-        pygame.display.flip()
 
         #initiliaze values and variables
         wrong = 0
@@ -154,7 +151,17 @@ class Client(ConnectionListener):
     #######################################
 
     def Network_InformPlayerPresence(self, data):
-        print("*** players: " + ", ".join([p for p in data['players']]))
+        print("*** Opponent joined the game: " + data["opponent"])
+        #loading screen when generating grid
+        font = pygame.font.SysFont('Bahnschrift', 40)
+        text = font.render("Opponent Joined:", True, (0, 0, 0))
+        screen.blit(text, (175, 245))
+
+        font = pygame.font.SysFont('Bahnschrift', 40)
+        text = font.render(data["opponent"], True, (0, 0, 0))
+        screen.blit(text, (230, 290))
+        pygame.display.flip()
+
         # launch our threaded input loop
         t = start_new_thread(self.InputLoop, ())
 

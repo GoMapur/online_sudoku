@@ -53,10 +53,11 @@ class SudokuServer(Server):
         self.AddPlayer(channel)
 
     def AddPlayer(self, player):
-        print("New Player" + str(player.addr))
-        self.players[player] = True
-        self.InformPlayerPresence()
-        print("players", [p for p in self.players])
+        if len(self.players) < 2:
+            print("New Player" + str(player.addr))
+            self.players[player] = True
+            self.InformPlayerPresence()
+            print("players", [p for p in self.players])
         if len(self.players) == 2:
             for p in self.players:
                 p.Send({"action": "CompetitionInit", "initial_board_state": self.initial_board_state})
