@@ -1,69 +1,78 @@
-"""Example game backend"""
+import sys
+from time import sleep, localtime
+from weakref import WeakKeyDictionary
 
-import random
-from pygase import GameState, Backend
+from PodSixNet.Server import Server
+from PodSixNet.Channel import Channel
 
+class ClientChannel(Channel):
+    """
+    This is the server representation of a single connected client.
+    """
+    def __init__(self, nickname, board_state_original, board_state_filled, *args, **kwargs):
+        self.nickname = nickname
+        self.board_state_original = []
+        self.board_state_filled = []
+        Channel.__init__(self, *args, **kwargs)
 
-### SETUP ###
+    def Close(self):
+        self._server.DelPlayer(self)
 
-# Initialize the game state.
-initial_game_state = GameState(
-    players={},  # dict with `player_id: player_dict` entries
-    chaser_id=None,  # id of player who is chaser
-    protection=None,  # wether protection from the chaser is active
-    countdown=0.0,  # countdown until protection is lifted
-)
+    ##################################
+    ### Network specific callbacks ###
+    ##################################
 
-# Define the game loop iteration function.
-def time_step(game_state, dt):
-    # Before a player joins, updating the game state is unnecessary.
-    if game_state.chaser_id is None:
-        return {}
-    # If protection mode is on, all players are safe from the chaser.
-    if game_state.protection:
-        new_countdown = game_state.countdown - dt
-        return {"countdown": new_countdown, "protection": True if new_countdown >= 0.0 else False}
-    # Check if the chaser got someone.
-    chaser = game_state.players[game_state.chaser_id]
-    for player_id, player in game_state.players.items():
-        if not player_id == game_state.chaser_id:
-            # Calculate their distance to the chaser.
-            dx = player["position"][0] - chaser["position"][0]
-            dy = player["position"][1] - chaser["position"][1]
-            distance_squared = dx * dx + dy * dy
-            # Whoever the chaser touches becomes the new chaser and the protection countdown starts.
-            if distance_squared < 15:
-                print(f"{player['name']} has been caught")
-                return {"chaser_id": player_id, "protection": True, "countdown": 5.0}
-    return {}
+    def Network_move(self, data):
+        self.board_state_filled = data["board_state_filled"]
+        self._server.SendToOpponent({"action": "move", "board_state": data, "who": self.nickname})
 
+    def Network_nickname(self, data):
+        self.nickname = data['nickname']
+        self._server.InformPlayerPresence()
 
-# "MOVE" event handler
-def on_move(player_id, new_position, **kwargs):
-    return {"players": {player_id: {"position": new_position}}}
+class SudokuServer(Server):
+    channelClass = ClientChannel
 
+    def __init__(self, *args, **kwargs):
+        Server.__init__(self, *args, **kwargs)
+        self.players = WeakKeyDictionary()
+        print('Server launched')
 
-# Create the backend.
-backend = Backend(initial_game_state, time_step, event_handlers={"MOVE": on_move})
+    def Connected(self, channel, addr):
+        if len(self.players) == 2:
+            return
+        self.AddPlayer(channel)
 
-# "JOIN" event handler
-def on_join(player_name, game_state, client_address, **kwargs):
-    print(f"{player_name} joined.")
-    player_id = len(game_state.players)
-    # Notify client that the player successfully joined the game.
-    backend.server.dispatch_event("PLAYER_CREATED", player_id, target_client=client_address)
-    return {
-        # Add a new entry to the players dict
-        "players": {player_id: {"name": player_name, "position": (random.random() * 640, random.random() * 420)}},
-        # If this is the first player to join, make it the chaser.
-        "chaser_id": player_id if game_state.chaser_id is None else game_state.chaser_id,
-    }
+    def AddPlayer(self, player):
+        print("New Player" + str(player.addr))
+        self.players[player] = True
+        self.InformPlayerPresence()
+        print("players", [p for p in self.players])
 
+    def DelPlayer(self, player):
+        print("Deleting Player" + str(player.addr))
+        del self.players[player]
+        self.InformPlayerPresence()
 
-# Register the "JOIN" handler.
-backend.game_state_machine.register_event_handler("JOIN", on_join)
+    def InformPlayerPresence(self):
+        p1, p2 = self.players[0], self.players[1]
+        p1.Send({"action": "informPlayerPresence", "opponent": p2.nickname})
+        p2.Send({"action": "informPlayerPresence", "opponent": p1.nickname})
 
-### MAIN PROCESS ###
+    def SendToAll(self, data):
+        [p.Send(data) for p in self.players]
 
-if __name__ == "__main__":
-    backend.run(hostname="localhost", port=8080)
+    def Launch(self):
+        while True:
+            self.Pump()
+            sleep(0.0001)
+
+# get command line argument of server, port
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Usage:", sys.argv[0], "host:port")
+        print("e.g.", sys.argv[0], "localhost:31425")
+    else:
+        host, port = sys.argv[1].split(":")
+        s = SudokuServer(localaddr=(host, int(port)))
+        s.Launch()

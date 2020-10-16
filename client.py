@@ -1,95 +1,66 @@
-"""Example game client"""
+from __future__ import print_function
 
-import pygame
-import pygame.locals
-from pygase import Client
+import sys
+from time import sleep
+from sys import stdin, exit
 
-### SETUP ###
+from PodSixNet.Connection import connection, ConnectionListener
 
-# Subclass pygase classes to scope event handlers and game-specific variables.
-class ChaseClient(Client):
-    def __init__(self):
-        super().__init__()
-        self.player_id = None
-        # The backend will send a "PLAYER_CREATED" event in response to a "JOIN" event.
-        self.register_event_handler("PLAYER_CREATED", self.on_player_created)
+# This example uses Python threads to manage async input from sys.stdin.
+# This is so that I can receive input from the console whilst running the server.
+# Don't ever do this - it's slow and ugly. (I'm doing it for simplicity's sake)
+from _thread import *
 
-    # "PLAYER_CREATED" event handler
-    def on_player_created(self, player_id):
-        # Remember the id the backend assigned the player.
-        self.player_id = player_id
+class Client(ConnectionListener):
+    def __init__(self, host, port):
+        self.Connect((host, port))
+        print("Chat client started")
+        print("Ctrl-C to exit")
+        # get a nickname from the user before starting
+        print("Enter your nickname: ")
+        connection.Send({"action": "nickname", "nickname": stdin.readline().rstrip("\n")})
+        # launch our threaded input loop
+        t = start_new_thread(self.InputLoop, ())
 
-# Create a client.
-client = ChaseClient()
+    def Loop(self):
+        connection.Pump()
+        self.Pump()
 
-### MAIN PROCESS ###
+    def InputLoop(self):
+        # horrid threaded input loop
+        # continually reads from stdin and sends whatever is typed to the server
+        while 1:
+            connection.Send({"action": "message", "message": stdin.readline().rstrip("\n")})
 
-if __name__ == "__main__":
-    # Connect the client, let the player input a name and join the server.
-    client.connect_in_thread(hostname="localhost", port=8080)
-    client.dispatch_event("JOIN", input("Player name: "))
-    # Wait until "PLAYER_CREATED" has been handled.
-    while client.player_id is None:
-        pass
-    # Set up pygame.
-    keys_pressed = set()  # all keys that are currently pressed down
-    clock = pygame.time.Clock()
-    # Initialize a pygame screen.
-    pygame.init()
-    screen_width = 640
-    screen_height = 420
-    screen = pygame.display.set_mode((screen_width, screen_height))
-    # Start the actual main loop.
-    game_loop_is_running = True
-    while game_loop_is_running:
-        # Run at 50 FPS
-        dt = clock.tick(50)
-        # Clear the screen.
-        screen.fill((0, 0, 0))
-        # Handle pygame input events.
-        for event in pygame.event.get():
-            if event.type == pygame.locals.QUIT:
-                game_loop_is_running = False
-            if event.type == pygame.locals.KEYDOWN:
-                keys_pressed.add(event.key)
-            if event.type == pygame.locals.KEYUP:
-                keys_pressed.remove(event.key)
-        # Handle player movement.
-        dx, dy = 0, 0
-        if pygame.locals.K_DOWN in keys_pressed:
-            dy += 0.5 * dt
-        elif pygame.locals.K_UP in keys_pressed:
-            dy -= 0.5 * dt
-        elif pygame.locals.K_RIGHT in keys_pressed:
-            dx += 0.5 * dt
-        elif pygame.locals.K_LEFT in keys_pressed:
-            dx -= 0.5 * dt
-        # Safely access the synchronized shared game state.
-        with client.access_game_state() as game_state:
-            # Notify server about player movement.
-            old_position = game_state.players[client.player_id]["position"]
-            client.dispatch_event(
-                event_type="MOVE",
-                player_id=client.player_id,
-                new_position=((old_position[0] + dx) % screen_width, (old_position[1] + dy) % screen_height),
-            )
-            # Draw all players as little circles.
-            for player_id, player in game_state.players.items():
-                if player_id == client.player_id:
-                    # Green: Yourself
-                    color = (50, 255, 50)
-                elif player_id == game_state.chaser_id:
-                    # Red: The chaser
-                    color = (255, 50, 50)
-                else:
-                    # Blue: Others
-                    color = (50, 50, 255)
-                x, y = [int(coordinate) for coordinate in player["position"]]
-                pygame.draw.circle(screen, color, (x, y), 10)
-        # Do the thing.
-        pygame.display.flip()
-    # Clean up.
-    pygame.quit()
+    #######################################
+    ### Network event/message callbacks ###
+    #######################################
 
-    # Disconnect afterwards and shut down the server if the client is the host.
-    client.disconnect(shutdown_server=True)
+    def Network_informPlayerPresence(self, data):
+        print("*** players: " + ", ".join([p for p in data['players']]))
+
+    def Network_move(self, data):
+        print(data['who'] + ": " + data['message'])
+
+    # built in stuff
+    def Network_connected(self, data):
+        print("You are now connected to the server")
+
+    def Network_error(self, data):
+        print('error:', data['error'][1])
+        connection.Close()
+
+    def Network_disconnected(self, data):
+        print('Server disconnected')
+        exit()
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Usage:", sys.argv[0], "host:port")
+        print("e.g.", sys.argv[0], "localhost:31425")
+    else:
+        host, port = sys.argv[1].split(":")
+        c = Client(host, int(port))
+        while 1:
+            c.Loop()
+            sleep(0.001)
