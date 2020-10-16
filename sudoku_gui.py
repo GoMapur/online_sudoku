@@ -10,21 +10,25 @@ pygame.init()
 class Board:
     '''A sudoku board made out of Tiles'''
     def __init__(self, window):
-        self.board = generate_board()
-
-        self.my_board_state_filled = None
-        self.opponent_board_state_filled = None
-
-        self.solvedBoard = deepcopy(self.board)
+        self.board = None
+        self.solvedBoard = None
 
         self.my_tiles = [[Tile(self.board[i][j], window, i*60, j*60) for j in range(9)] for i in range(9)]
         self.opponent_tiles = [[Tile(self.board[i][j], window, i*60+540+30, j*60) for j in range(9)] for i in range(9)]
 
         self.window = window
 
-        self.my_selection = None
-        self.oppnent_selection = None
+        self.opponent_board_state_correct = None
+        self.opponent_board_state_filled = None
+        self.opponent_board_state_original = None
+        self.opponent_current_selection = None
+        self.opponent_selection_color = None
 
+        self.my_board_state_correct = None
+        self.my_board_state_filled = None
+        self.my_board_state_original = None
+        self.my_current_selection = None
+        self.my_selection_color = None
 
     def draw_board(self):
         '''Fills the board with Tiles and renders their values'''

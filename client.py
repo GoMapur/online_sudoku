@@ -40,6 +40,8 @@ class Client(ConnectionListener):
         text = font.render("Waiting opponent to connect", True, (0, 0, 0))
         screen.blit(text, (175, 245))
 
+        self.board = Board(screen)
+
     def Loop(self):
         connection.Pump()
         self.Pump()
@@ -47,11 +49,8 @@ class Client(ConnectionListener):
     def InputLoop(self):
         # connection.Send({"action": "move", "board_state": stdin.readline().rstrip("\n")})
 
-
-
         #initiliaze values and variables
         wrong = 0
-        board = Board(screen)
         selected = -1,-1 #NoneType error when selected = None, easier to just format as a tuple whose value will never be used
         keyDict = {}
         running = True
@@ -162,20 +161,30 @@ class Client(ConnectionListener):
         screen.blit(text, (230, 290))
         pygame.display.flip()
 
+    def Network_InformPlayerLeft(self, data):
+        print("*** Opponent left the game: " + data["opponent"])
+        # What to do?
+
+    def Network_CompetitionInit(self, data):
+        print("Initial board received from server:\n" + data["initial_board_state"])
+        self.board.board = data["initial_board_state"]
         # launch our threaded input loop
         t = start_new_thread(self.InputLoop, ())
 
-    def Network_InformPlayerLeft(self, data):
-        print("*** players: " + ", ".join([p for p in data['players']]))
-
-    def Network_CompetitionInit(self, data):
-        print(data["initial_board_state"])
-
     def Network_OpponentMove(self, data):
-        print(data['who'] + ": " + data['message'])
+        board_state_correct = data["board_state_correct"]
+        board_state_filled = data["board_state_filled"]
+        board_state_original = data["board_state_original"]
+        current_selection = data["current_selection"]
+        selection_color = data["selection_color"]
+        self.board.opponent_board_state_correct = board_state_correct
+        self.board.opponent_board_state_filled = board_state_filled
+        self.board.opponent_board_state_original = board_state_original
+        self.board.opponent_current_selection = current_selection
+        self.board.opponent_selection_color = selection_color
 
     def Network_OpponentWin(self, data):
-        print("player won")
+        print("opponent won")
 
     # built in stuff
     def Network_connected(self, data):

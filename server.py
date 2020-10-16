@@ -16,6 +16,8 @@ class ClientChannel(Channel):
         self.board_state_original = []
         self.board_state_correct = []
         self.board_state_filled = []
+        self.current_selection = None
+        self.selection_color = None
         Channel.__init__(self, *args, **kwargs)
 
     def Close(self):
@@ -35,7 +37,11 @@ class ClientChannel(Channel):
         self._server.DelPlayer(self)
 
     def Network_OpponentMove(self, data):
+        self.board_state_correct = data["board_state_correct"]
         self.board_state_filled = data["board_state_filled"]
+        self.board_state_original = data["board_state_original"]
+        self.current_selection = data["current_selection"]
+        self.selection_color = data["selection_color"]
         self._server.SendToOpponent({"action": "OpponentMove", "board_state_correct": data["board_state_correct"], "board_state_filled": data["board_state_filled"], "board_state_original": data["board_state_original"], "current_selection": data["current_selection"], "selection_color": data["selection_color"]}, self.nickname)
 
 class SudokuServer(Server):
@@ -56,9 +62,9 @@ class SudokuServer(Server):
         if len(self.players) < 2:
             print("New Player" + str(player.addr))
             self.players[player] = True
-            self.InformPlayerPresence()
             print("players", [p for p in self.players])
         if len(self.players) == 2:
+            self.InformPlayerPresence()
             for p in self.players:
                 p.Send({"action": "CompetitionInit", "initial_board_state": self.initial_board_state})
 
