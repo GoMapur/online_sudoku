@@ -7,76 +7,27 @@ import random
 
 pygame.init()
 
-class Board:
-    '''A sudoku board made out of Tiles'''
+class color:
+    blue1 = (14,104,179)
+    blue2 = (2,144,207)
+    blue3 = (7,165,220)
+    blue4 = (110,217,245)
+    green = (11,168,105)
+    black = (0, 0, 0)
+    white = (224, 224, 224)
+
+class GameBoard:
     def __init__(self, window):
-        self.board = None
-        self.solvedBoard = None
-
-        self.my_tiles = [[Tile(self.board[i][j], window, i*60, j*60) for j in range(9)] for i in range(9)]
-        self.opponent_tiles = [[Tile(self.board[i][j], window, i*60+540+30, j*60) for j in range(9)] for i in range(9)]
-
         self.window = window
+        self.my_board = SudokuBoard(window, 0)
+        self.opponent_board = SudokuBoard(window, 540 + 30)
 
-        self.opponent_board_state_correct = None
-        self.opponent_board_state_filled = None
-        self.opponent_board_state_original = None
-        self.opponent_current_selection = None
-        self.opponent_selection_color = None
+    def boards_init(self, board):
+        self.my_board.boards_init()
+        self.opponent_board.boards_init()
 
-        self.my_board_state_correct = None
-        self.my_board_state_filled = None
-        self.my_board_state_original = None
-        self.my_current_selection = None
-        self.my_selection_color = None
-
-    def draw_board(self):
-        '''Fills the board with Tiles and renders their values'''
-        for shift_x in [0, 540+30]:
-            for i in range(9):
-                for j in range(9):
-                    if j%3 == 0 and j != 0: #vertical lines
-                        pygame.draw.line(self.window, (0, 0, 0), ((j//3)*180+shift_x, 0), ((j//3)*180+shift_x, 540), 4)
-
-                    if i%3 == 0 and i != 0: #horizontal lines
-                        pygame.draw.line(self.window, (0, 0, 0), (0+shift_x, (i//3)*180), (540+shift_x, (i//3)*180), 4)
-
-                    self.my_tiles[i][j].draw((0,0,0), 1)
-                    self.opponent_tiles[i][j].draw((0,0,0), 1)
-
-                    if self.my_tiles[i][j].value != 0: #don't draw 0s on the grid
-                        self.my_tiles[i][j].display(self.my_tiles[i][j].value, (21+(j*60), (16+(i*60))), (0, 0, 0))  #20,5 are the coordinates of the first tile
-                    if self.opponent_tiles[i][j].value != 0: #don't draw 0s on the grid
-                        self.opponent_tiles[i][j].display(self.opponent_tiles[i][j].value, (21+(j*60)+540+30, (16+(i*60))), (0, 0, 0))
-        #bottom-most line
-        pygame.draw.line(self.window, (0, 0, 0), (0, ((i+1) // 3) * 180), (540, ((i+1) // 3) * 180), 4)
-
-    def deselect(self, tile):
-        '''Deselects every tile except the one currently clicked'''
-        for i in range(9):
-            for j in range(9):
-                if self.my_tiles[i][j] != tile:
-                    self.my_tiles[i][j].selected = False
-
-    def redraw(self, keys, wrong, time):
-        '''redraws board with highlighted tiles'''
-        self.window.fill((255,255,255))
-        self.draw_board()
-        for i in range(9):
-            for j in range(9):
-                if self.my_tiles[j][i].selected:  #draws the border on selected tiles
-                    self.my_tiles[j][i].draw((50, 205, 50), 4)
-
-                elif self.my_tiles[i][j].correct:
-                    self.my_tiles[j][i].draw((34, 139, 34), 4)
-
-                elif self.my_tiles[i][j].incorrect:
-                    self.my_tiles[j][i].draw((255, 0, 0), 4)
-
-        if len(keys) != 0: #draws inputs that the user places on board but not their final value on that tile
-            for value in keys:
-                self.my_tiles[value[0]][value[1]].display(keys[value], (21+(value[0]*60), (16+(value[1]*60))), (128, 128, 128))
-
+    def draw_entirety(self):
+        self.window.fill(coloe.white)
         if wrong > 0:
             font = pygame.font.SysFont('Bauhaus 93', 30) #Red X
             text = font.render('X', True, (255, 0, 0))
@@ -89,30 +40,145 @@ class Board:
         font = pygame.font.SysFont('Bahnschrift', 40) #Time Display
         text = font.render(str(time), True, (0, 0, 0))
         self.window.blit(text, (388, 542))
-        pygame.display.flip()
+
+class SudokuBoard:
+    '''A sudoku board made out of Tiles'''
+    def __init__(self, window, shift_x):
+        self.window = window
+        self.shift_x = shift_x
+
+        self.game_ready = False
+        self.opponent_ready = False
+        self.tiles = [[Tile(window, i*60+shift_x, j*60) for j in range(9)] for i in range(9)]
+
+        self.board = None
+        self.solvedBoard = None
+        self.board_state_original = None
+        self.board_state_filled = None
+        self.board_state_correct = None
+        self.last_selection = None
+        self.current_selection = None
+        self.selection_color = None
+
+        self.wrong = 0
+
+    def board_init(self, board):
+        self.board = deepcopy(board)
+        self.solvedBoard = deepcopy(board)
+        solve(self.solvedBoard)
+        self.board_state_original = deepcopy(board)
+        self.board_state_filled = [[0 for i in range(9)] for j in range(9)]
+        self.board_state_correct = deepcopy(self.board_state_filled)
+
+    def draw_division_lines(self):
+        if self.game_ready:
+            shift_x = self.shift_x
+            for i in range(9):
+                for j in range(9):
+                    if j%3 == 0 and j != 0: #vertical lines
+                        pygame.draw.line(self.window, (0, 0, 0), ((j//3)*180+shift_x, 0), ((j//3)*180+shift_x, 540), 4)
+
+                    if i%3 == 0 and i != 0: #horizontal lines
+                        pygame.draw.line(self.window, (0, 0, 0), (0+shift_x, (i//3)*180), (540+shift_x, (i//3)*180), 4)
+
+                    #bottom-most line
+                    pygame.draw.line(self.window, (0, 0, 0), (0+shift_x, ((i+1) // 3) * 180), (540+shift_x, ((i+1) // 3) * 180), 4)
+
+    def draw_board(self):
+        '''Fills the board with Tiles and renders their values'''
+        if self.game_ready:
+            self.draw_division_lines()
+            shift_x = self.shift_x
+            for i in range(9):
+                for j in range(9):
+                    self.tiles[i][j].display_entirety()
+            pygame.display.flip()
+        elif self.opponent_ready:
+            font = pygame.font.SysFont('Bahnschrift', 40)
+            text = font.render("Waiting server to generate board", True, color.black)
+            screen.blit(text, (175 + self.shift_x, 245))
+        elif self.opponent_ready:
+            font = pygame.font.SysFont('Bahnschrift', 40)
+            text = font.render("Waiting opponent to connect", True, color.black)
+            screen.blit(text, (175 + self.shift_x, 245))
+
+    def deselect(self):
+        '''Deselects every tile except the one currently clicked'''
+        if self.game_ready:
+            self.last_selection.de_highlight()
 
 class Tile:
     '''Represents each white tile/box on the grid'''
-    def __init__(self, value, window, x1, y1):
-        self.value = value
+    def __init__(self, window, x1, y1):
         self.window = window
+        self.x1 = x1
+        self.y1 = y1
         self.rect = pygame.Rect(x1, y1, 60, 60) #dimensions for the rectangle
-        self.selected = False
+
+        self.solution_value = 0
+        self.placed_value = 0
         self.correct = False
-        self.incorrect = False
 
-    def draw(self, color, thickness):
+        self.border_color = color.black
+        self.fill_color = color.white
+        self.font_color = color.black
+        self.font_bold = False
+        self.border_width = 1
+
+        self.font_shift_x = 21
+        self.font_shift_y = 16
+
+    def highlight(self):
+        self.border_width = 4
+        self.border_color = color.green
+
+    def de_highlight(self):
+        self.border_width = 1
+        self.border_color = color.black
+
+    def is_correct(self):
+        ```When a tile is correct, it cannot be changed anymore.```
+        return self.correct and self.solution_value == self.placed_value
+
+    def try_enter(self):
+        if self.solution_value == self.placed_value:
+            self.correct = True
+            return True
+        else:
+            return False
+
+    def fill_rect(self):
         '''Draws a tile on the board'''
-        pygame.draw.rect(self.window, color, self.rect, thickness)
+        pygame.draw.rect(self.window, self.fill_color, self.rect)
 
-    def display(self, value, position, color):
+    def display_font(self):
         '''Displays a number on that tile'''
-        font = pygame.font.SysFont('lato', 45)
-        text = font.render(str(value), True, color)
-        self.window.blit(text, position)
+        if self.placed_value != 0:
+            font = pygame.font.SysFont('lato', 45, bold = self.font_bold)
+            text = font.render(str(self.placed_value), True, self.font_color)
+            self.window.blit(text, (self.x1 + self.font_shift_x, self.y1 + self.font_shift_y))
+
+    def draw_border(self):
+        color = self.border_color
+        width = self.border_width
+
+        top_left = (self.x1, self.y1)
+        top_right = (self.x1 + 60, self.y1)
+        bottom_left = (self.x1, self.y1 + 60)
+        bottom_right = (self.x1 + 60, self.y1 + 60)
+
+        pygame.draw.line(self.window, color, top_left, top_right, width)
+        pygame.draw.line(self.window, color, top_right, bottom_left, width)
+        pygame.draw.line(self.window, color, bottom_left, bottom_right, width)
+        pygame.draw.line(self.window, color, bottom_right, top_left, width)
+
+    def display_entirety(self):
+        self.fill_rect()
+        self.draw_border()
+        self.display_font()
 
     def clicked(self, mousePos):
         '''Checks if a tile has been clicked'''
         if self.rect.collidepoint(mousePos): #checks if a point is inside a rect
-            self.selected = True
+            self.highlight()
         return self.selected
