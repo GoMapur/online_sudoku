@@ -12,7 +12,7 @@ from pygase import Client
 ### SETUP ###
 
 # Subclass pygase classes to scope event handlers and game-specific variables.
-class ChaseClient(Client):
+class SudokuClient(Client):
     def __init__(self):
         super().__init__()
         self.player_id = None
@@ -28,10 +28,10 @@ class ChaseClient(Client):
 ### MAIN PROCESS ###
 if __name__ == "__main__":
     # Create a client.
-    client = ChaseClient()
+    client = SudokuClient()
     # Connect the client, let the player input a name and join the server.
     client.connect_in_thread(hostname="localhost", port=8080)
-    client.dispatch_event("JOIN", input("Player name: "))
+    client.dispatch_event("JOIN")
 
     # Wait until "PLAYER_CREATED" has been handled.
     while client.player_id is None:
@@ -47,25 +47,14 @@ if __name__ == "__main__":
     screen = screen
     game_board = GameBoard(screen)
 
-    game_ready = False
-    while not game_ready:
-        with client.access_game_state() as game_state:
 
-    startTime = time.time()
 
     # Start the actual main loop.
     while True:
-        if game_board.
+        with client.access_game_state() as game_state:
 
         elapsed = time.time() - startTime
         passedTime = time.strftime("%H:%M:%S", time.gmtime(elapsed))
-
-        if board.board == board.solvedBoard: #user has solved the board
-            for i in range(9):
-                for j in range(9):
-                    board.my_tiles[i][j].selected = False
-            running = False
-            connection.Send({"action": "OpponentWin"})
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

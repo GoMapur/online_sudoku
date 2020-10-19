@@ -22,14 +22,12 @@ class GameBoard:
         self.window = window
         self.my_board = SudokuBoard(window, 0, True)
         self.opponent_board = SudokuBoard(window, 540 + 30, False)
-        self.time = None
 
     def boards_init(self, board):
         self.my_board.board_init(board)
         self.opponent_board.board_init(board)
         self.my_board.game_ready = True
         self.opponent_board.game_ready = True
-        self.time = time.time()
 
     def draw_entirety(self):
         self.window.fill(color.white)

@@ -4,30 +4,42 @@ import math
 from pygase import GameState, Backend
 from sudoku_alg import generate_board
 from copy import deepcopy
+import time
 
 ### SETUP ###
-board_p1 = generate_board()
-board_p2 = deepcopy(board_p1)
 
 # Initialize the game state.
 initial_game_state = GameState(
     players={},  # dict with `player_id: player_dict` entries
-    board_p1 = {"board": board_p1,
-        "placed_values": [[0 for i in range(9)] for j in range(9)],
-        "correct": [[True if  for i in range(9)] for j in range(9)], 
+    starting_board = None,
+    board_p1 = {"board": board_p1, # Correct values on board_p1
+        "placed_values": [[0 for i in range(9)] for j in range(9)], # Placed values on board_p1
         "current_selection": None,
-        "last_selection": None,
-        "last_selection_color": None},
-    board_p2 = {},
-    time_elapsed = 0
+        "last_enter_color": None},
+    board_p2 = {"board": board_p1, # Correct values on board_p1
+        "placed_values": [[0 for i in range(9)] for j in range(9)], # Placed values on board_p1
+        "current_selection": None,
+        "last_enter_color": None},
+    started = False,
+    startTime = None,
+    time_elapsed = None
 )
+
+def server_game_init():
+    board = generate_board()
+    return {
+        starting_board = None,
+
+    }
+
 
 # Define the game loop iteration function.
 def time_step(game_state, dt):
     # Before a player joins, updating the game state is unnecessary.
     if len(players) < 2:
         return {}
-    if
+    if not started and len(players) == 2:
+        return server_game_init(game_state)
 
 # Create the backend.
 backend = Backend(initial_game_state, time_step)
@@ -37,19 +49,18 @@ def on_move(player_id, new_position, **kwargs):
     return {"players": {player_id: {"position": new_position}}}
 
 # "JOIN" event handler
-def on_join(player_name, game_state, client_address, **kwargs):
+def on_join(game_state, client_address, **kwargs):
     if len(game_state.players) == 2:
         backend.server.dispatch_event("JOIN_FAILED", target_client=client_address)
 
     print(f"{player_name} joined.")
     player_id = len(game_state.players)
+
     # Notify client that the player successfully joined the game.
     backend.server.dispatch_event("PLAYER_CREATED", player_id, target_client=client_address)
     return {
         # Add a new entry to the players dict
-        "players": {player_id: {"name": player_name, "client_address": client_address, }},
-        # If this is the first player to join, make it the chaser.
-        "chaser_id": player_id if game_state.chaser_id is None else game_state.chaser_id,
+        "players": {player_id: client_address},
     }
 
 
