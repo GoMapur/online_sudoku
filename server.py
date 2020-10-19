@@ -1,111 +1,63 @@
 import sys
 from time import sleep, localtime
-from weakref import WeakKeyDictionary
-
-from PodSixNet.Server import Server
-from PodSixNet.Channel import Channel
-
+import math
+from pygase import GameState, Backend
 from sudoku_alg import generate_board
+from copy import deepcopy
 
-class ClientChannel(Channel):
-    """
-    This is the server representation of a single connected client.
-    """
-    def __init__(self, nickname, board_state_original, board_state_filled, *args, **kwargs):
-        self.nickname = nickname
-        self.board_state_original = []
-        self.board_state_correct = []
-        self.board_state_filled = []
-        self.current_selection = None
-        self.selection_color = None
-        Channel.__init__(self, *args, **kwargs)
+### SETUP ###
+board_p1 = generate_board()
+board_p2 = deepcopy(board_p1)
 
-    def Close(self):
-        self._server.DelPlayer(self)
+# Initialize the game state.
+initial_game_state = GameState(
+    players={},  # dict with `player_id: player_dict` entries
+    board_p1 = {"board": board_p1,
+        "placed_values": [[0 for i in range(9)] for j in range(9)],
+        "correct": [[True if  for i in range(9)] for j in range(9)], 
+        "current_selection": None,
+        "last_selection": None,
+        "last_selection_color": None},
+    board_p2 = {},
+    time_elapsed = 0
+)
 
-    ##################################
-    ### Network specific callbacks ###
-    ##################################
-    def Network_Nickname(self, data):
-        self.nickname = data['nickname']
-        self._server.InformPlayerPresence()
+# Define the game loop iteration function.
+def time_step(game_state, dt):
+    # Before a player joins, updating the game state is unnecessary.
+    if len(players) < 2:
+        return {}
+    if
 
-    def Network_OpponentWin(self, data):
-        self._server.SendToOpponent({"action": "OpponentWin"})
+# Create the backend.
+backend = Backend(initial_game_state, time_step)
 
-    def Network_OpponentLeft(self, data):
-        self._server.DelPlayer(self)
+# "MOVE" event handler
+def on_move(player_id, new_position, **kwargs):
+    return {"players": {player_id: {"position": new_position}}}
 
-    def Network_OpponentMove(self, data):
-        self.board_state_correct = data["board_state_correct"]
-        self.board_state_filled = data["board_state_filled"]
-        self.board_state_original = data["board_state_original"]
-        self.current_selection = data["current_selection"]
-        self.selection_color = data["selection_color"]
-        self._server.SendToOpponent({"action": "OpponentMove", "board_state_correct": data["board_state_correct"], "board_state_filled": data["board_state_filled"], "board_state_original": data["board_state_original"], "current_selection": data["current_selection"], "selection_color": data["selection_color"]}, self.nickname)
+# "JOIN" event handler
+def on_join(player_name, game_state, client_address, **kwargs):
+    if len(game_state.players) == 2:
+        backend.server.dispatch_event("JOIN_FAILED", target_client=client_address)
 
-class SudokuServer(Server):
-    channelClass = ClientChannel
+    print(f"{player_name} joined.")
+    player_id = len(game_state.players)
+    # Notify client that the player successfully joined the game.
+    backend.server.dispatch_event("PLAYER_CREATED", player_id, target_client=client_address)
+    return {
+        # Add a new entry to the players dict
+        "players": {player_id: {"name": player_name, "client_address": client_address, }},
+        # If this is the first player to join, make it the chaser.
+        "chaser_id": player_id if game_state.chaser_id is None else game_state.chaser_id,
+    }
 
-    def __init__(self, *args, **kwargs):
-        Server.__init__(self, *args, **kwargs)
-        self.players = WeakKeyDictionary()
-        self.initial_board_state = generate_board()
-        print('Server launched')
 
-    def Connected(self, channel, addr):
-        if len(self.players) == 2:
-            return
-        self.AddPlayer(channel)
+# Register handlers
+backend.game_state_machine.register_event_handler("JOIN", on_join)
+backend.game_state_machine.register_event_handler("MOVE", on_move)
 
-    def AddPlayer(self, player):
-        if len(self.players) < 2:
-            print("New Player" + str(player.addr))
-            self.players[player] = True
-            print("players", [p for p in self.players])
-        if len(self.players) == 2:
-            self.InformPlayerPresence()
-            for p in self.players:
-                p.Send({"action": "CompetitionInit", "initial_board_state": self.initial_board_state})
+### MAIN PROCESS ###
 
-    def DelPlayer(self, player):
-        print("Deleting Player" + str(player.addr))
-        del self.players[player]
-        self.InformPlayerLeft()
-
-    def InformPlayerPresence(self):
-        p1, p2 = self.players[0], self.players[1]
-        p1.Send({"action": "InformPlayerPresence", "opponent": p2.nickname})
-        p2.Send({"action": "InformPlayerPresence", "opponent": p1.nickname})
-
-    def InformPlayerLeft(self):
-        if len(self.players) == 1:
-            self.players[0].Send({"action": "InformPlayerLeft"})
-
-    def SendToOpponent(self, data, nickname):
-        opponent = self.reverse_player(nickname)
-        if opponent:
-            opponent.send(data)
-
-    def reverse_player(self, nickname):
-        p1, p2 = self.players[0], self.players[1]
-        if nickname == p1.nickname:
-            return p2
-        elif nickname == p2.nickname:
-            return p1
-        return None
-
-    def Launch(self):
-        while True:
-            self.Pump()
-            sleep(0.0001)
-
-# get command line argument of server, port
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage:", sys.argv[0], "host:port")
-        print("e.g.", sys.argv[0], "localhost:31425")
-    else:
-        host, port = sys.argv[1].split(":")
-        s = SudokuServer(localaddr=(host, int(port)))
-        s.Launch()
+if __name__ == "__main__":
+    backend.run(hostname="localhost", port=8080)

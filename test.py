@@ -14,3 +14,9 @@ game.draw_entirety()
 
 game.my_board.tiles[0][0].set_border_selected()
 game.draw_entirety()
+
+print(game.my_board.solvedBoard)
+game.my_board.tiles[0][1].placed_value = 2
+game.draw_entirety()
+game.my_board.tiles[0][1].try_enter()
+game.draw_entirety()

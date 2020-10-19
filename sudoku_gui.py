@@ -116,7 +116,7 @@ class SudokuBoard:
             font = pygame.font.SysFont('Bahnschrift', 40)
             text = font.render("Waiting server to generate board", True, color.black)
             screen.blit(text, (175 + self.shift_x, 245))
-        elif self.opponent_ready:
+        else:
             font = pygame.font.SysFont('Bahnschrift', 40)
             text = font.render("Waiting opponent to connect", True, color.black)
             screen.blit(text, (175 + self.shift_x, 245))
@@ -125,6 +125,13 @@ class SudokuBoard:
         '''Deselects every tile except the one currently clicked'''
         if self.game_ready:
             self.last_selection.set_border_unselected()
+
+    def check_win(self):
+        for i in range(9):
+            for j in range(9):
+                if not self.tiles[i][j].is_correct:
+                    return False
+        return True
 
 class Tile:
     '''Represents each white tile/box on the grid'''
@@ -143,13 +150,13 @@ class Tile:
         self.border_color = color.black
         self.fill_color = color.white
         self.font_color = color.black
-        self.font_bold = False
+        self.font_bold = True
         self.border_width = 1
 
         self.font_shift_x = 21
         self.font_shift_y = 6
 
-        self.is_host_tile = is_host
+        self.is_host = is_host
         self.original_correct = False
 
     def set_border_selected(self):
@@ -169,12 +176,12 @@ class Tile:
 
     def set_background_wrong(self):
         self.fill_color = color.red
-        self.font_bold = False
+        self.font_bold = True
         self.correct = False
 
     def set_background_normal(self):
         self.fill_color = color.white
-        self.font_bold = False
+        self.font_bold = True
         self.correct = False
 
     def check_set_background(self):
@@ -190,14 +197,17 @@ class Tile:
         return self.correct and self.solution_value == self.placed_value
 
     def try_enter(self):
-        if self.solution_value == self.placed_value:
-            self.correct = True
-            return True
-        else:
-            self.placed_value = 0
-            self.show_wrong = True
-            self.set_background_wrong()
-            return False
+        if self.placed_value != 0:
+            if self.solution_value == self.placed_value:
+                self.set_background_correct()
+                self.correct = True
+                return True
+            else:
+                self.placed_value = 0
+                self.show_wrong = True
+                self.set_background_wrong()
+                return False
+        return True
 
     def fill_rect(self):
         '''Draws a tile on the board'''
